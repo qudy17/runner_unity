@@ -866,6 +866,7 @@ GameObject:
   - component: {fileID: 1479430340}
   - component: {fileID: 1479430342}
   - component: {fileID: 1479430341}
+  - component: {fileID: 1479430343}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -898,7 +899,7 @@ SpriteRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 288ebd35f8a6a5b40bac7b261da87656, type: 2}
+  - {fileID: 2100000, guid: 22697d46ee2823b49bc36fb397c04ffd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -920,12 +921,12 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 10
-  m_Sprite: {fileID: 978942612559604503, guid: 60b80995e8cfe404ea37a4aef2d5fc6f, type: 3}
-  m_Color: {r: 0.08018869, g: 0.67136914, b: 1, a: 1}
+  m_Sprite: {fileID: -1747588863007392711, guid: d55353b8f66b5484d9593c6a88e71886, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 2.25, y: 0.61}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -940,8 +941,8 @@ Transform:
   m_GameObject: {fileID: 1479430331}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -8.8, y: -1.09, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -8.09, y: -1.7, z: 0}
+  m_LocalScale: {x: 2, y: 2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -958,7 +959,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6674b53085364e48a64671bf7e4186d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
-  gravity: -200
+  gravity: -80
   velocity: {x: 0, y: 0}
   maxXVelocity: 30
   maxAcceleration: 10
@@ -982,6 +983,10 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 128
   groundCheckDistance: 0.2
+  dashBoostSpeed: 25
+  dashDuration: 0.15
+  dashCooldown: 0.8
+  airDeceleration: 5
 --- !u!114 &1479430341
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1050,14 +1055,29 @@ BoxCollider2D:
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 0.7, y: 1}
-    newSize: {x: 1, y: 1}
+    oldSize: {x: 0.36, y: 0.57}
+    newSize: {x: 2.25, y: 0.61}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 0.7, y: 1}
+  m_Size: {x: 0.36, y: 0.57}
   m_EdgeRadius: 0
+--- !u!114 &1479430343
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1479430331}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7df8c387da48bbe49aac9bbd751af9ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SpriteNeonOutline
+  outlineTint: {r: 1, g: 1, b: 1, a: 1}
+  outlineSize: 0.05
+  outlineMaterial: {fileID: 2100000, guid: 80be39cfc9af6ee479688676d910a6de, type: 2}
 --- !u!1 &1588693052
 GameObject:
   m_ObjectHideFlags: 0
@@ -1331,7 +1351,7 @@ Transform:
   m_GameObject: {fileID: 1822446505}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.26, y: -0.18, z: 0}
   m_LocalScale: {x: 54, y: 33, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

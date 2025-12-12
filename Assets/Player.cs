@@ -30,8 +30,20 @@ public class Player : MonoBehaviour
     public bool canDoubleJump = true;       // Можно ли делать двойной прыжок
     private bool wasGrounded = false;       // Был ли игрок на земле в предыдущем кадре
 
-    public LayerMask groundLayerMask;
-    public LayerMask obstacleLayerMask;
+
+    [Header("Polarity Settings")]
+    public int currentPolarity = 0; // 0 = Neon, 1 = Dark
+    [Header("Polarity Layers")]
+    public int neonGroundLayerIndex = 8;
+    public int darkGroundLayerIndex = 9;
+    [Header("Polarity Colors")]
+    public Color neonPlayerColor = new Color(0.2f, 1f, 1f, 1f);
+    public Color darkPlayerColor = new Color(1f, 0.2f, 1f, 1f);
+
+    private LayerMask neonMask;
+    private LayerMask darkMask;
+    private int playerLayer;
+    private SpriteRenderer playerSpriteRenderer;
 
     GroundFall fall;
     CameraController cameraController;
@@ -43,6 +55,22 @@ public class Player : MonoBehaviour
 
     private BoxCollider2D playerCollider;
     public float groundCheckDistance = 0.1f;
+
+    // === МЕХАНИКА РЫВКА (DASH/AIR DASH) ===
+    public float dashBoostSpeed = 250f;     // Скорость рывка (200-300)
+    public float dashDuration = 0.15f;      // Длительность (0.1-0.2 сек)
+    public float dashCooldown = 0.8f;       // Кулдаун (0.5-1 сек)
+    public float airDeceleration = 5f;
+
+    private bool isDashing = false;
+    private float dashTimer = 0f;
+    private float dashCooldownTimer = 0f;
+    private bool dashPressed = false;
+
+    private InputAction dashAction;
+    private float preDashVelocityX = 0f;  // << НОВАЯ: Сохраняет скорость ДО dash
+
+    private InputAction switchPolarityAction;
 
     void Start()
     {
@@ -64,6 +92,28 @@ public class Player : MonoBehaviour
             jumpAction.started += OnJumpStarted;
             jumpAction.canceled += OnJumpCanceled;
         }
+
+        dashAction = playerInput.actions["Dash"];
+        if (dashAction != null)
+        {
+            dashAction.started += OnDashStarted;
+        }
+        Debug.Log("Dash Action initialized: " + (dashAction != null)); // ТЕСТ
+        neonMask = 1 << neonGroundLayerIndex;
+        darkMask = 1 << darkGroundLayerIndex;
+        playerLayer = gameObject.layer;
+
+        switchPolarityAction = playerInput.actions["SwitchPolarity"];
+        if (switchPolarityAction != null)
+        {
+            switchPolarityAction.started += OnPolaritySwitch;
+        }
+
+        playerSpriteRenderer = GetComponent<SpriteRenderer>();
+        if (playerSpriteRenderer != null)
+        {
+            playerSpriteRenderer.color = neonPlayerColor; // Начальное состояние Neon
+        }
     }
 
     void OnDestroy()
@@ -72,6 +122,16 @@ public class Player : MonoBehaviour
         {
             jumpAction.started -= OnJumpStarted;
             jumpAction.canceled -= OnJumpCanceled;
+        }
+
+        if (dashAction != null)
+        {
+            dashAction.started -= OnDashStarted;
+        }
+
+        if (switchPolarityAction != null)
+        {
+            switchPolarityAction.started -= OnPolaritySwitch;
         }
     }
 
@@ -85,6 +145,17 @@ public class Player : MonoBehaviour
         jumpReleased = true;
     }
 
+    private void OnDashStarted(InputAction.CallbackContext context)
+    {
+        dashPressed = true;
+        Debug.Log("Dash pressed! Cooldown ready: " + (dashCooldownTimer <= 0f)); // ТЕСТ
+    }
+
+    private void OnPolaritySwitch(InputAction.CallbackContext context)
+    {
+        SwitchPolarity();
+    }
+
     void Update()
     {
         // ТОЛЬКО сбор input'а через события Input System
@@ -96,6 +167,38 @@ public class Player : MonoBehaviour
         if (isDead)
         {
             return;
+        }
+        // === РЫВОК: КУЛДАУН ===
+        dashCooldownTimer = Mathf.Max(0f, dashCooldownTimer - Time.fixedDeltaTime);
+
+        // === ЗАПУСК РЫВКА ===
+        if (dashPressed && dashCooldownTimer <= 0f && !isDashing)
+        {
+            dashPressed = false;
+            preDashVelocityX = velocity.x;  // << ФИКС: Сохраняем текущую скорость
+            isDashing = true;
+            dashTimer = dashDuration;
+            dashCooldownTimer = dashCooldown;
+            Debug.Log("🚀 DASH STARTED! Pre-dash velocity.x = " + preDashVelocityX + ", Boost to " + dashBoostSpeed);
+        }
+
+        // === ЛОГИКА РЫВКА ===
+        if (isDashing)
+        {
+            velocity.x = dashBoostSpeed;
+            dashTimer -= Time.fixedDeltaTime;
+            if (dashTimer <= 0f)
+            {
+                isDashing = false;
+                velocity.x = preDashVelocityX;  // << КЛЮЧЕВОЙ ФИКС: Возврат к ИСХОДНОЙ скорости!
+                Debug.Log("✅ DASH ENDED! velocity.x RESTORED to " + preDashVelocityX);
+            }
+        }
+        else
+        {
+            // ГЛОБАЛЬНЫЙ CAP: Никогда не выше maxXVelocity (на всякий случай)
+            velocity.x = Mathf.Min(velocity.x, maxXVelocity);
+            Debug.Log("Cap applied: velocity.x = " + velocity.x + " (grounded=" + isGrounded + ")"); // ТЕСТ, удалите
         }
 
         Vector2 pos = transform.position;
@@ -192,7 +295,7 @@ public class Player : MonoBehaviour
             }
 
             Vector2 rayOrigin = new Vector2(pos.x, pos.y - (playerCollider.bounds.size.y / 2));
-            RaycastHit2D groundHit = Physics2D.Raycast(rayOrigin, Vector2.down, rayLength, groundLayerMask);
+            RaycastHit2D groundHit = Physics2D.Raycast(rayOrigin, Vector2.down, rayLength, GetCurrentMask());
 
             if (groundHit.collider != null)
             {
@@ -219,7 +322,7 @@ public class Player : MonoBehaviour
 
             Vector2 wallOrigin = new Vector2(pos.x, pos.y);
             Vector2 wallDir = Vector2.right;
-            RaycastHit2D wallHit = Physics2D.Raycast(wallOrigin, wallDir, velocity.x * Time.fixedDeltaTime, groundLayerMask);
+            RaycastHit2D wallHit = Physics2D.Raycast(wallOrigin, wallDir, velocity.x * Time.fixedDeltaTime, GetCurrentMask());
             if (wallHit.collider != null)
             {
                 Ground ground = wallHit.collider.GetComponent<Ground>();
@@ -243,7 +346,7 @@ public class Player : MonoBehaviour
 
         distance += velocity.x * Time.fixedDeltaTime;
 
-        if (isGrounded)
+        if (isGrounded && !isDashing)
         {
             float velocityRatio = velocity.x / maxXVelocity;
             acceleration = maxAcceleration * (1 - velocityRatio);
@@ -259,7 +362,7 @@ public class Player : MonoBehaviour
 
             // ПОВТОРНАЯ ПРОВЕРКА ЗЕМЛИ ПОД ИГРОКОМ С ПОМОЩЬЮ RAYCAST
             Vector2 rayOrigin = new Vector2(pos.x, pos.y - (playerCollider.bounds.size.y / 2));
-            RaycastHit2D groundHit = Physics2D.Raycast(rayOrigin, Vector2.down, groundCheckDistance, groundLayerMask);
+            RaycastHit2D groundHit = Physics2D.Raycast(rayOrigin, Vector2.down, groundCheckDistance, GetCurrentMask());
 
             if (groundHit.collider == null)
             {
@@ -274,7 +377,7 @@ public class Player : MonoBehaviour
         }
 
         Vector2 obstOrigin = new Vector2(pos.x, pos.y);
-        RaycastHit2D obstHitX = Physics2D.Raycast(obstOrigin, Vector2.right, velocity.x * Time.fixedDeltaTime, obstacleLayerMask);
+        RaycastHit2D obstHitX = Physics2D.Raycast(obstOrigin, Vector2.right, velocity.x * Time.fixedDeltaTime, GetCurrentMask());
         if (obstHitX.collider != null)
         {
             Obstacle obstacle = obstHitX.collider.GetComponent<Obstacle>();
@@ -284,7 +387,7 @@ public class Player : MonoBehaviour
             }
         }
 
-        RaycastHit2D obstHitY = Physics2D.Raycast(obstOrigin, Vector2.up, velocity.y * Time.fixedDeltaTime, obstacleLayerMask);
+        RaycastHit2D obstHitY = Physics2D.Raycast(obstOrigin, Vector2.up, velocity.y * Time.fixedDeltaTime, GetCurrentMask());
         if (obstHitY.collider != null)
         {
             Obstacle obstacle = obstHitY.collider.GetComponent<Obstacle>();
@@ -317,6 +420,42 @@ public class Player : MonoBehaviour
     public void hitObstacle(Obstacle obstacle)
     {
         isDead = true;
+    }
+
+    private void SwitchPolarity()
+    {
+        currentPolarity = 1 - currentPolarity; // Toggle 0 <-> 1
+        UpdateCollisionLayers();
+        UpdatePlayerVisuals();
+        Debug.Log("Polarity switched to: " + (currentPolarity == 0 ? "Neon" : "Dark"));
+    }
+
+    private void UpdateCollisionLayers()
+    {
+        // Игнорируем коллизии с неподходящим слоем
+        Physics2D.IgnoreLayerCollision(playerLayer, neonGroundLayerIndex, currentPolarity != 0);
+        Physics2D.IgnoreLayerCollision(playerLayer, darkGroundLayerIndex, currentPolarity != 1);
+    }
+
+    private void UpdatePlayerVisuals()
+    {
+        if (playerSpriteRenderer != null)
+        {
+            playerSpriteRenderer.color = (currentPolarity == 0 ? neonPlayerColor : darkPlayerColor);
+        }
+
+        // Обновляем обводку, если есть
+        SpriteNeonOutline outlineComp = GetComponent<SpriteNeonOutline>();
+        if (outlineComp != null)
+        {
+            outlineComp.outlineTint = (currentPolarity == 0 ? neonPlayerColor : darkPlayerColor);
+            // Цвет обновится в LateUpdate() следующего кадра
+        }
+    }
+
+    private int GetCurrentMask()
+    {
+        return (currentPolarity == 0 ? neonMask : darkMask).value;
     }
 
     // ДОБАВЛЕНО: Метод для включения/выключения двойного прыжка

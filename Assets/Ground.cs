@@ -36,6 +36,15 @@ public class Ground : MonoBehaviour
     public float minAllowedHeight = -3f; // Минимальная допустимая высота
     public float maxAllowedHeight = 8f; // Максимальная допустимая высота
 
+    [Header("Polarity Settings")]
+    public int platformPolarity = 0; // 0 = Neon, 1 = Dark
+    [Header("Polarity Layers")]
+    public int neonLayerIndex = 8;
+    public int darkLayerIndex = 9;
+    [Header("Polarity Colors")]
+    public Color neonPlatformColor = new Color(0.2f, 1f, 1f, 1f); // Cyan-ish neon
+    public Color darkPlatformColor = new Color(1f, 0.2f, 1f, 1f);   // Magenta-ish dark
+
     private void Awake()
     {
         player = GameObject.Find("Player").GetComponent<Player>();
@@ -59,6 +68,35 @@ public class Ground : MonoBehaviour
 
         // Подгоняем спрайт под размер коллайдера
         UpdateSpriteToMatchCollider();
+        SetRandomPolarityIfNeeded();
+        SetPlatformLayer();
+        UpdatePlatformVisuals();
+    }
+
+    private void SetRandomPolarityIfNeeded()
+    {
+        if (!isInitialPlatform)
+        {
+            platformPolarity = Random.Range(0, 2);
+        }
+        // Для начальной платформы оставляем 0 (Neon) по умолчанию
+    }
+
+    private void SetPlatformLayer()
+    {
+        gameObject.layer = (platformPolarity == 0 ? neonLayerIndex : darkLayerIndex);
+    }
+
+    private void UpdatePlatformVisuals()
+    {
+        if (spriteChild != null)
+        {
+            SpriteRenderer sr = spriteChild.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                sr.color = (platformPolarity == 0 ? neonPlatformColor : darkPlatformColor);
+            }
+        }
     }
 
     void Update()
@@ -122,6 +160,9 @@ public class Ground : MonoBehaviour
 
         // Убеждаемся что новая платформа НЕ считается начальной
         newGroundScript.isInitialPlatform = false;
+        newGroundScript.SetRandomPolarityIfNeeded();
+        newGroundScript.SetPlatformLayer();
+        newGroundScript.UpdatePlatformVisuals();
 
         // Сбрасываем флаг генерации для новой платформы!
         newGroundScript.didGenerateNext = false;
@@ -205,6 +246,7 @@ public class Ground : MonoBehaviour
 
             Vector2 obstaclePos = new Vector2(obstacleX, obstacleY);
             obstacle.transform.position = obstaclePos;
+            obstacle.layer = groundObject.layer;
 
 
             GroundFall fall = groundObject.GetComponent<GroundFall>();
