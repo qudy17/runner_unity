@@ -867,6 +867,7 @@ GameObject:
   - component: {fileID: 1479430342}
   - component: {fileID: 1479430341}
   - component: {fileID: 1479430343}
+  - component: {fileID: 1479430344}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -962,8 +963,8 @@ MonoBehaviour:
   gravity: -80
   velocity: {x: 0, y: 0}
   maxXVelocity: 30
-  maxAcceleration: 10
-  acceleration: 10
+  maxAcceleration: 5
+  acceleration: 5
   distance: 0
   jumpVelocity: 20
   groundHeight: 10
@@ -976,16 +977,15 @@ MonoBehaviour:
   isDead: 0
   maxJumpCount: 2
   canDoubleJump: 1
-  groundLayerMask:
-    serializedVersion: 2
-    m_Bits: 64
-  obstacleLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
+  currentPolarity: 0
+  neonGroundLayerIndex: 8
+  darkGroundLayerIndex: 9
+  neonPlayerColor: {r: 0.2, g: 1, b: 1, a: 1}
+  darkPlayerColor: {r: 1, g: 0.2, b: 1, a: 1}
   groundCheckDistance: 0.2
   dashBoostSpeed: 25
   dashDuration: 0.15
-  dashCooldown: 0.8
+  dashCooldown: 3.5
   airDeceleration: 5
 --- !u!114 &1479430341
 MonoBehaviour:
@@ -1078,6 +1078,28 @@ MonoBehaviour:
   outlineTint: {r: 1, g: 1, b: 1, a: 1}
   outlineSize: 0.05
   outlineMaterial: {fileID: 2100000, guid: 80be39cfc9af6ee479688676d910a6de, type: 2}
+--- !u!95 &1479430344
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1479430331}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: b540dd0956f666d4ca1c157ad6ade393, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &1588693052
 GameObject:
   m_ObjectHideFlags: 0
@@ -1188,6 +1210,11 @@ MonoBehaviour:
   maxHeightChange: 5
   minAllowedHeight: -5
   maxAllowedHeight: 2
+  platformPolarity: 0
+  neonLayerIndex: 8
+  darkLayerIndex: 9
+  neonPlatformColor: {r: 0.2, g: 1, b: 1, a: 1}
+  darkPlatformColor: {r: 1, g: 0.2, b: 1, a: 1}
 --- !u!1 &1686320770
 GameObject:
   m_ObjectHideFlags: 0

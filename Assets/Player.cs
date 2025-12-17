@@ -114,6 +114,9 @@ public class Player : MonoBehaviour
         {
             playerSpriteRenderer.color = neonPlayerColor; // Начальное состояние Neon
         }
+
+        Physics2D.IgnoreLayerCollision(playerLayer, 10, currentPolarity != 0); // Neon шипы
+        Physics2D.IgnoreLayerCollision(playerLayer, 11, currentPolarity != 1); // Dark шипы
     }
 
     void OnDestroy()
@@ -432,9 +435,13 @@ public class Player : MonoBehaviour
 
     private void UpdateCollisionLayers()
     {
-        // Игнорируем коллизии с неподходящим слоем
+        // Игнорируем коллизии с неподходящим слоем платформ
         Physics2D.IgnoreLayerCollision(playerLayer, neonGroundLayerIndex, currentPolarity != 0);
         Physics2D.IgnoreLayerCollision(playerLayer, darkGroundLayerIndex, currentPolarity != 1);
+
+        // ДОБАВЛЕНО: Игнорируем коллизии с неподходящим слоем шипов
+        Physics2D.IgnoreLayerCollision(playerLayer, 10, currentPolarity != 0); // Neon шипы (слой 10)
+        Physics2D.IgnoreLayerCollision(playerLayer, 11, currentPolarity != 1); // Dark шипы (слой 11)
     }
 
     private void UpdatePlayerVisuals()
@@ -455,7 +462,14 @@ public class Player : MonoBehaviour
 
     private int GetCurrentMask()
     {
-        return (currentPolarity == 0 ? neonMask : darkMask).value;
+        // Обновляем маску чтобы включать оба слоя шипов в зависимости от полярности
+        int maskValue = (currentPolarity == 0 ? neonMask : darkMask).value;
+
+        // Добавляем соответствующий слой шипов
+        int obstacleLayer = (currentPolarity == 0 ? 10 : 11); // Предполагаемые индексы слоев
+        maskValue |= (1 << obstacleLayer);
+
+        return maskValue;
     }
 
     // ДОБАВЛЕНО: Метод для включения/выключения двойного прыжка

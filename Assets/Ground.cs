@@ -237,26 +237,31 @@ public class Ground : MonoBehaviour
             float platformRight = groundObject.transform.position.x + (groundCollider.size.x / 2);
             float obstacleX = Random.Range(platformLeft + 1f, platformRight - 1f); // Отступ от краев
 
-            // Позиционируем шип НА платформе, а не на groundHeight
+            // Позиционируем шип НА платформе
             float platformTop = groundObject.transform.position.y + (groundCollider.size.y / 2);
-            float obstacleY = platformTop + (obstacleHeight / 2); // Ставим шип поверх платформы
+            float obstacleY = platformTop + (obstacleHeight / 2);
 
             float manualOffset = -0.2f;
-            obstacleY +=  manualOffset;
+            obstacleY += manualOffset;
 
             Vector2 obstaclePos = new Vector2(obstacleX, obstacleY);
             obstacle.transform.position = obstaclePos;
-            obstacle.layer = groundObject.layer;
 
+            // ВАЖНОЕ ИЗМЕНЕНИЕ: Устанавливаем полярность шипа такой же как у платформы
+            Obstacle obst = obstacle.GetComponent<Obstacle>();
+            if (obst != null)
+            {
+                // Устанавливаем ту же полярность что и у платформы
+                obst.SetPolarity(groundScript.platformPolarity);
+
+                // НЕ устанавливаем слой платформы, а используем слой из SetPolarity
+                // obstacle.layer = groundObject.layer; // ЭТУ СТРОКУ УБИРАЕМ
+            }
 
             GroundFall fall = groundObject.GetComponent<GroundFall>();
-            if (fall != null)
+            if (fall != null && obst != null)
             {
-                Obstacle obst = obstacle.GetComponent<Obstacle>();
-                if (obst != null)
-                {
-                    fall.obstacles.Add(obst);
-                }
+                fall.obstacles.Add(obst);
             }
         }
     }
