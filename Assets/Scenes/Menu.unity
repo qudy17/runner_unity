@@ -657,7 +657,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 947719557}
         m_TargetAssemblyTypeName: UIControllerTitle, Assembly-CSharp
-        m_MethodName: play
+        m_MethodName: shop
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

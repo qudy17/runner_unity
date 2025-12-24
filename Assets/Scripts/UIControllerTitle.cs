@@ -19,4 +19,14 @@ public class UIControllerTitle : MonoBehaviour
     {
         SceneManager.LoadScene("MainScene");
     }
+
+    public void shop()
+    {
+        SceneManager.LoadScene("Shop");
+    }
+
+    public void menu()
+    {
+        SceneManager.LoadScene("Menu");
+    }
 }

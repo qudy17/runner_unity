@@ -5,32 +5,29 @@ using UnityEngine.InputSystem;
 
 public class Player : MonoBehaviour
 {
-    public float gravity;                   // Сила гравитации (отрицательное значение)
-    public Vector2 velocity;                // Текущая скорость игрока (x - горизонтальная, y - вертикальная)
-    public float maxXVelocity = 100;        // Максимальная горизонтальная скорость
-    public float maxAcceleration = 10;      // Максимальное ускорение
-    public float acceleration = 10;         // Текущее ускорение (увеличивает velocity.x)
-    public float distance = 0;              // Пройденная дистанция (счетчик очков)
-    public float jumpVelocity = 20;         // Сила прыжка (начальная вертикальная скорость)
-    public float groundHeight = 10;         // Текущая высота земли под игроком
-    public bool isGrounded = false;         // Стоит ли игрок на земле
+    // Основные параметры
+    public float gravity;
+    public Vector2 velocity;
+    public float maxXVelocity = 100;
+    public float maxAcceleration = 10;
+    public float acceleration = 10;
+    public float distance = 0;
+    public float jumpVelocity = 20;
+    public float groundHeight = 10;
+    public bool isGrounded = false;
 
-    public bool isHoldingJump = false;      // Зажата ли кнопка прыжка
-    public float maxHoldJumpTime = 0.4f;    // Максимальное время удержания прыжка
-    public float maxMaxHoldJumpTime = 0.4f; // Базовое максимальное время удержания
-    public float holdJumpTimer = 0.0f;      // Таймер удержания прыжка
+    public bool isHoldingJump = false;
+    public float maxHoldJumpTime = 0.4f;
+    public float maxMaxHoldJumpTime = 0.4f;
+    public float holdJumpTimer = 0.0f;
 
-    public float jumpGroundThreshold = 1;   // Дистанция от земли, при которой еще можно прыгнуть
+    public float jumpGroundThreshold = 1;
 
-    public bool isDead = false;             // Умер ли игрок
-                                            // === СИСТЕМА МОНЕТ ===
-                                            // === СИСТЕМА МОНЕТ (обновлённая) ===
+    public bool isDead = false;
+
+    // Система монет
     [Header("Coin System")]
-    public int sessionCoins = 0;            // Монеты собранные в текущей сессии
-
-   
-
-    // totalCoins теперь загружается/сохраняется автоматически
+    public int sessionCoins = 0;
     private int _totalCoins = 0;
     public int totalCoins
     {
@@ -38,21 +35,19 @@ public class Player : MonoBehaviour
         set
         {
             _totalCoins = value;
-            SaveCoins(); // Автосохранение при изменении
+            SaveCoinsToJson();
         }
     }
 
-    // Ключ для PlayerPrefs
-    private const string COINS_SAVE_KEY = "PlayerTotalCoins";
+    // Двойной прыжок
+    [Header("Jump Settings")]
+    public int maxJumpCount = 2;
+    private int currentJumpCount = 0;
+    public bool canDoubleJump = true;
 
-    // ДОБАВЛЕНО: Переменные для двойного прыжка
-    public int maxJumpCount = 2;            // Максимальное количество прыжков
-    private int currentJumpCount = 0;       // Текущее количество использованных прыжков
-    public bool canDoubleJump = true;       // Можно ли делать двойной прыжок
-    //private bool wasGrounded = false;       // Был ли игрок на земле в предыдущем кадре
-
+    // Полярность
     [Header("Polarity Settings")]
-    public int currentPolarity = 0; // 0 = Neon, 1 = Dark
+    public int currentPolarity = 0;
     [Header("Polarity Layers")]
     public int neonGroundLayerIndex = 8;
     public int darkGroundLayerIndex = 9;
@@ -65,21 +60,31 @@ public class Player : MonoBehaviour
     private int playerLayer;
     private SpriteRenderer playerSpriteRenderer;
 
+    // Скины
+    [Header("Skin Settings")]
+    public RuntimeAnimatorController punkSkin;
+    public RuntimeAnimatorController cyborgSkin;
+    public RuntimeAnimatorController bikerSkin;
+    private Animator playerAnimator;
+    private string currentAppliedSkin = "";
+
     GroundFall fall;
     CameraController cameraController;
 
+    // Input System
     private PlayerInput playerInput;
     private InputAction jumpAction;
     private bool jumpPressed = false;
     private bool jumpReleased = false;
 
+    // Физика
     private BoxCollider2D playerCollider;
     public float groundCheckDistance = 0.1f;
 
-    // === МЕХАНИКА РЫВКА (DASH/AIR DASH) ===
-    public float dashBoostSpeed = 250f;     // Скорость рывка (200-300)
-    public float dashDuration = 0.15f;      // Длительность (0.1-0.2 сек)
-    public float dashCooldown = 0.8f;       // Кулдаун (0.5-1 сек)
+    // Рывок
+    public float dashBoostSpeed = 250f;
+    public float dashDuration = 0.15f;
+    public float dashCooldown = 0.8f; // Базовый кулдаун
     public float airDeceleration = 5f;
 
     private bool isDashing = false;
@@ -88,31 +93,34 @@ public class Player : MonoBehaviour
     private bool dashPressed = false;
 
     private InputAction dashAction;
-    private float preDashVelocityX = 0f;  // << НОВАЯ: Сохраняет скорость ДО dash
+    private float preDashVelocityX = 0f;
 
+    // Переключение полярности
     private InputAction switchPolarityAction;
 
-    // === НОВОЕ: Для потолка ===
+    // Потолок
     [Header("Ceiling Settings")]
-    public LayerMask ceilingMask; // Назначьте слой "Ceiling" в инспекторе
-    public float ceilingCheckDistance = 0.2f; // Буфер для raycast вверх
+    public LayerMask ceilingMask;
+    public float ceilingCheckDistance = 0.2f;
 
     void Start()
     {
-        // Загружаем сохранённые монеты при старте
-        LoadCoins();
+        // Загружаем монеты
+        LoadCoinsFromJson();
 
-        Debug.Log("Player start position: " + transform.position);
-        Debug.Log("💰 Loaded total coins: " + _totalCoins);
+        Debug.Log("Player start. Total coins: " + _totalCoins);
 
+        ApplyMultiplierFromSave();
+
+        // Получаем компоненты
         cameraController = Camera.main.GetComponent<CameraController>();
         playerCollider = GetComponent<BoxCollider2D>();
+        playerAnimator = GetComponent<Animator>();
+        playerSpriteRenderer = GetComponent<SpriteRenderer>();
 
-        // === ВАЖНО: Проверяем землю при старте ===
+        // Настройка стартовой позиции
         Vector2 pos = transform.position;
         Vector2 groundRayOrigin = new Vector2(pos.x, pos.y - (playerCollider.bounds.size.y / 2));
-
-        // Используем Default + Neon маску для начальной проверки
         int startMask = (1 << neonGroundLayerIndex) | (1 << darkGroundLayerIndex);
         RaycastHit2D groundHit = Physics2D.Raycast(groundRayOrigin, Vector2.down, 1f, startMask);
 
@@ -122,21 +130,13 @@ public class Player : MonoBehaviour
             if (ground != null)
             {
                 groundHeight = ground.groundHeight;
-                // Ставим игрока точно на платформу
                 pos.y = groundHeight + (playerCollider.bounds.size.y / 2);
                 transform.position = pos;
                 isGrounded = true;
-                Debug.Log("✅ Player placed on ground at height: " + groundHeight);
             }
         }
-        else
-        {
-            isGrounded = false;
-            Debug.Log("⚠️ No ground found under player at start!");
-        }
 
-        // ... остальной код Start() ...
-
+        // Input System
         playerInput = GetComponent<PlayerInput>();
         if (playerInput == null)
         {
@@ -156,24 +156,30 @@ public class Player : MonoBehaviour
             dashAction.started += OnDashStarted;
         }
 
-        neonMask = 1 << neonGroundLayerIndex;
-        darkMask = 1 << darkGroundLayerIndex;
-        playerLayer = gameObject.layer;
-
         switchPolarityAction = playerInput.actions["SwitchPolarity"];
         if (switchPolarityAction != null)
         {
             switchPolarityAction.started += OnPolaritySwitch;
         }
 
-        playerSpriteRenderer = GetComponent<SpriteRenderer>();
+        // Настройка слоёв
+        neonMask = 1 << neonGroundLayerIndex;
+        darkMask = 1 << darkGroundLayerIndex;
+        playerLayer = gameObject.layer;
+
+        // Применяем скин из сохранения
+        ApplySkinFromSave();
+
+        // Применяем улучшения из сохранения
+        ApplyUpgradesFromSave();
+
+        // Начальная настройка графики
         if (playerSpriteRenderer != null)
         {
             playerSpriteRenderer.color = neonPlayerColor;
         }
 
-        Physics2D.IgnoreLayerCollision(playerLayer, 10, currentPolarity != 0);
-        Physics2D.IgnoreLayerCollision(playerLayer, 11, currentPolarity != 1);
+        UpdateCollisionLayers();
     }
 
     void OnDestroy()
@@ -195,6 +201,110 @@ public class Player : MonoBehaviour
         }
     }
 
+    [Header("Score Multiplier")]
+    public float scoreMultiplier = 1.0f; // Текущий множитель
+    private int _scoreMultiplierLevel = 0; // Уровень множителя
+
+    public int scoreMultiplierLevel
+    {
+        get { return _scoreMultiplierLevel; }
+        set
+        {
+            _scoreMultiplierLevel = Mathf.Clamp(value, 0, 10);
+            scoreMultiplier = 1.0f + (_scoreMultiplierLevel * 0.1f); // +10% за уровень
+        }
+    }
+
+    void ApplyMultiplierFromSave()
+    {
+        PlayerSaveData saveData = UIController.Instance?.GetSaveData();
+        if (saveData == null) return;
+
+        scoreMultiplierLevel = saveData.scoreMultiplierLevel;
+        Debug.Log("Score multiplier level: " + scoreMultiplierLevel + " (x" + scoreMultiplier + ")");
+    }
+
+    public float GetScoreMultiplier()
+    {
+        return scoreMultiplier;
+    }
+
+    public int GetScoreMultiplierLevel()
+    {
+        return scoreMultiplierLevel;
+    }
+
+    public void SetScoreMultiplierLevel(int level)
+    {
+        scoreMultiplierLevel = level;
+
+        // Сохраняем в сохранение
+        PlayerSaveData saveData = UIController.Instance?.GetSaveData();
+        if (saveData != null)
+        {
+            saveData.scoreMultiplierLevel = scoreMultiplierLevel;
+            UIController.Instance.UpdateSaveData(saveData);
+        }
+    }
+
+    void ApplySkinFromSave()
+    {
+        if (playerAnimator == null) return;
+
+        PlayerSaveData saveData = UIController.Instance?.GetSaveData();
+        if (saveData == null) return;
+
+        string skin = saveData.selectedSkin;
+
+        switch (skin)
+        {
+            case "Punk":
+                if (punkSkin != null)
+                {
+                    playerAnimator.runtimeAnimatorController = punkSkin;
+                    currentAppliedSkin = "Punk";
+                }
+                break;
+            case "Cyborg":
+                if (cyborgSkin != null)
+                {
+                    playerAnimator.runtimeAnimatorController = cyborgSkin;
+                    currentAppliedSkin = "Cyborg";
+                }
+                break;
+            case "Biker":
+                if (bikerSkin != null)
+                {
+                    playerAnimator.runtimeAnimatorController = bikerSkin;
+                    currentAppliedSkin = "Biker";
+                }
+                break;
+        }
+
+        Debug.Log("Applied skin: " + skin);
+    }
+
+    void ApplyUpgradesFromSave()
+    {
+        PlayerSaveData saveData = UIController.Instance?.GetSaveData();
+        if (saveData == null) return;
+
+        // Применяем улучшение рывка
+        if (saveData.dashUpgradeLevel > 0)
+        {
+            dashCooldown = 0.8f - (saveData.dashUpgradeLevel * 0.2f);
+            Debug.Log("Dash cooldown upgraded to: " + dashCooldown + "s");
+        }
+
+        // Применяем двойной прыжок если куплен
+        if (saveData.doubleJumpUnlocked)
+        {
+            canDoubleJump = true;
+            maxJumpCount = 2;
+            Debug.Log("Double jump unlocked");
+        }
+    }
+
     private void OnJumpStarted(InputAction.CallbackContext context)
     {
         jumpPressed = true;
@@ -208,7 +318,6 @@ public class Player : MonoBehaviour
     private void OnDashStarted(InputAction.CallbackContext context)
     {
         dashPressed = true;
-        Debug.Log("Dash pressed! Cooldown ready: " + (dashCooldownTimer <= 0f)); // ТЕСТ
     }
 
     private void OnPolaritySwitch(InputAction.CallbackContext context)
@@ -218,21 +327,17 @@ public class Player : MonoBehaviour
 
     void Update()
     {
-        // ТОЛЬКО сбор input'а через события Input System
-        // Вся игровая логика перенесена в FixedUpdate
+        // Только сбор input
     }
 
     private void FixedUpdate()
     {
-        if (isDead)
-        {
-            return;
-        }
+        if (isDead) return;
 
-        // === РЫВОК: КУЛДАУН ===
+        // Обновление кулдауна рывка
         dashCooldownTimer = Mathf.Max(0f, dashCooldownTimer - Time.fixedDeltaTime);
 
-        // === ЗАПУСК РЫВКА ===
+        // Рывок
         if (dashPressed && dashCooldownTimer <= 0f && !isDashing)
         {
             dashPressed = false;
@@ -242,7 +347,6 @@ public class Player : MonoBehaviour
             dashCooldownTimer = dashCooldown;
         }
 
-        // === ЛОГИКА РЫВКА ===
         if (isDashing)
         {
             velocity.x = dashBoostSpeed;
@@ -259,14 +363,11 @@ public class Player : MonoBehaviour
         }
 
         Vector2 pos = transform.position;
-
-        // Сохраняем предыдущее состояние
         bool wasGroundedLastFrame = isGrounded;
 
-        // === ПРИМЕНЯЕМ ГРАВИТАЦИЮ И ВЕРТИКАЛЬНОЕ ДВИЖЕНИЕ (если в воздухе) ===
+        // Вертикальное движение
         if (!isGrounded)
         {
-            // Удержание прыжка
             if (isHoldingJump)
             {
                 holdJumpTimer += Time.fixedDeltaTime;
@@ -276,13 +377,12 @@ public class Player : MonoBehaviour
                 }
             }
 
-            // Применяем гравитацию (только если не удерживаем прыжок)
             if (!isHoldingJump)
             {
                 velocity.y += gravity * Time.fixedDeltaTime;
             }
 
-            // Проверка потолка (когда летим вверх)
+            // Проверка потолка
             if (velocity.y > 0)
             {
                 float ceilingRayLength = Mathf.Abs(velocity.y * Time.fixedDeltaTime) + ceilingCheckDistance;
@@ -297,14 +397,11 @@ public class Player : MonoBehaviour
                 }
             }
 
-            // Применяем вертикальное движение
             pos.y += velocity.y * Time.fixedDeltaTime;
         }
 
-        // === ПРОВЕРКА ЗЕМЛИ (ВСЕГДА выполняется) ===
+        // Проверка земли
         float groundRayLength = groundCheckDistance;
-
-        // Удлиняем луч если падаем
         if (velocity.y < 0)
         {
             groundRayLength = Mathf.Abs(velocity.y * Time.fixedDeltaTime) + groundCheckDistance;
@@ -321,15 +418,12 @@ public class Player : MonoBehaviour
                 groundHeight = ground.groundHeight;
                 float playerBottom = pos.y - (playerCollider.bounds.size.y / 2);
 
-                // Если игрок на уровне земли или ниже, и падает или стоит
                 if (playerBottom <= groundHeight + groundCheckDistance && velocity.y <= 0)
                 {
-                    // Корректируем позицию - ставим точно на землю
                     pos.y = groundHeight + (playerCollider.bounds.size.y / 2);
                     velocity.y = 0;
                     isGrounded = true;
 
-                    // Обработка падающей платформы
                     GroundFall newFall = groundHit.collider.GetComponent<GroundFall>();
                     if (newFall != fall)
                     {
@@ -348,21 +442,17 @@ public class Player : MonoBehaviour
                 }
                 else
                 {
-                    // Игрок выше земли - он в воздухе
                     isGrounded = false;
                 }
             }
             else
             {
-                // Объект не является Ground
                 isGrounded = false;
             }
         }
         else
         {
-            // === КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Нет земли под ногами - игрок падает! ===
             isGrounded = false;
-
             if (fall != null)
             {
                 fall.player = null;
@@ -371,13 +461,13 @@ public class Player : MonoBehaviour
             }
         }
 
-        // === СБРОС СЧЕТЧИКА ПРЫЖКОВ при приземлении ===
+        // Сброс прыжков при приземлении
         if (isGrounded && !wasGroundedLastFrame)
         {
             currentJumpCount = 0;
         }
 
-        // === ОБРАБОТКА ПРЫЖКА ===
+        // Прыжок
         if (jumpPressed)
         {
             if (currentJumpCount < maxJumpCount)
@@ -428,7 +518,7 @@ public class Player : MonoBehaviour
             jumpReleased = false;
         }
 
-        // === ПРОВЕРКА СТЕНЫ (когда в воздухе) ===
+        // Проверка стен
         if (!isGrounded)
         {
             Vector2 wallOrigin = new Vector2(pos.x, pos.y);
@@ -447,7 +537,7 @@ public class Player : MonoBehaviour
             }
         }
 
-        // === УСКОРЕНИЕ (когда на земле) ===
+        // Ускорение на земле
         if (isGrounded && !isDashing)
         {
             float velocityRatio = velocity.x / maxXVelocity;
@@ -461,16 +551,27 @@ public class Player : MonoBehaviour
             }
         }
 
-        // === ПРОВЕРКА СМЕРТИ ===
+        // Смерть
         if (pos.y < -20)
         {
             isDead = true;
         }
 
-        // === ДИСТАНЦИЯ ===
+        // Дистанция
         distance += velocity.x * Time.fixedDeltaTime;
 
-        // === ПРОВЕРКА ПРЕПЯТСТВИЙ ===
+        // Проверка препятствий
+        CheckObstacleCollisions(pos);
+
+        // Применение позиции
+        transform.position = pos;
+
+        // Обновление анимации
+        UpdateAnimation();
+    }
+
+    void CheckObstacleCollisions(Vector2 pos)
+    {
         Vector2 obstOrigin = new Vector2(pos.x, pos.y);
 
         RaycastHit2D obstHitX = Physics2D.Raycast(obstOrigin, Vector2.right, velocity.x * Time.fixedDeltaTime, GetCurrentMask());
@@ -496,16 +597,164 @@ public class Player : MonoBehaviour
                 }
             }
         }
+    }
 
-        // === ПРИМЕНЯЕМ ПОЗИЦИЮ ===
-        transform.position = pos;
+    void UpdateAnimation()
+    {
+        if (playerAnimator == null) return;
+
+        playerAnimator.SetBool("IsRunning", velocity.x > 0.1f);
+        playerAnimator.SetBool("IsGrounded", isGrounded);
+        playerAnimator.SetFloat("VelocityY", velocity.y);
+        playerAnimator.SetBool("IsDashing", isDashing);
+    }
+
+    public void hitObstacle(Obstacle obstacle)
+    {
+        isDead = true;
+    }
+
+    private void SwitchPolarity()
+    {
+        currentPolarity = 1 - currentPolarity;
+        UpdateCollisionLayers();
+        UpdatePlayerVisuals();
+    }
+
+    private void UpdateCollisionLayers()
+    {
+        Physics2D.IgnoreLayerCollision(playerLayer, neonGroundLayerIndex, currentPolarity != 0);
+        Physics2D.IgnoreLayerCollision(playerLayer, darkGroundLayerIndex, currentPolarity != 1);
+        Physics2D.IgnoreLayerCollision(playerLayer, 10, currentPolarity != 0);
+        Physics2D.IgnoreLayerCollision(playerLayer, 11, currentPolarity != 1);
+    }
+
+    private void UpdatePlayerVisuals()
+    {
+        if (playerSpriteRenderer != null)
+        {
+            playerSpriteRenderer.color = (currentPolarity == 0 ? neonPlayerColor : darkPlayerColor);
+        }
+
+        SpriteNeonOutline outlineComp = GetComponent<SpriteNeonOutline>();
+        if (outlineComp != null)
+        {
+            outlineComp.outlineTint = (currentPolarity == 0 ? neonPlayerColor : darkPlayerColor);
+        }
+    }
+
+    private int GetCurrentMask()
+    {
+        int maskValue = (currentPolarity == 0 ? neonMask : darkMask).value;
+        int obstacleLayer = (currentPolarity == 0 ? 10 : 11);
+        maskValue |= (1 << obstacleLayer);
+        return maskValue;
+    }
+
+    // === МЕТОДЫ ДЛЯ МОНЕТ ===
+
+    public void AddCoins(int amount)
+    {
+        sessionCoins += amount;
+        _totalCoins += amount;
+        SaveCoinsToJson();
+        Debug.Log("💰 Coins collected! +" + amount);
+    }
+
+    public int GetSessionCoins()
+    {
+        return sessionCoins;
+    }
+
+    public int GetTotalCoins()
+    {
+        return _totalCoins;
+    }
+
+    public void SetTotalCoins(int amount)
+    {
+        _totalCoins = amount;
+        SaveCoinsToJson();
+    }
+
+    public bool SpendCoins(int amount)
+    {
+        if (_totalCoins >= amount)
+        {
+            _totalCoins -= amount;
+            SaveCoinsToJson();
+            return true;
+        }
+        return false;
+    }
+
+    public void ResetSessionCoins()
+    {
+        sessionCoins = 0;
+    }
+
+    // Сохранение/загрузка
+    private void SaveCoinsToJson()
+    {
+        if (UIController.Instance != null)
+        {
+            UIController.Instance.UpdateCoinSaveData(_totalCoins);
+        }
+        else
+        {
+            Debug.LogWarning("UIController not found! Coins not saved.");
+        }
+    }
+
+    private void LoadCoinsFromJson()
+    {
+        if (UIController.Instance != null)
+        {
+            _totalCoins = UIController.Instance.GetSavedCoins();
+        }
+        else
+        {
+            _totalCoins = 0;
+            Debug.LogWarning("UIController not found! Starting with 0 coins.");
+        }
+    }
+
+    // Двойной прыжок
+    public void SetDoubleJump(bool enabled)
+    {
+        canDoubleJump = enabled;
+        if (!enabled && currentJumpCount > 0)
+        {
+            currentJumpCount = Mathf.Min(currentJumpCount, 1);
+        }
+    }
+
+    public int GetCurrentJumpCount()
+    {
+        return currentJumpCount;
+    }
+
+    public int GetMaxJumpCount()
+    {
+        return maxJumpCount;
+    }
+
+    public int GetMultipliedDistance()
+    {
+        float multipliedDistance = distance * scoreMultiplier;
+        return Mathf.FloorToInt(multipliedDistance);
+    }
+
+    // Старый метод оставляем для совместимости
+    public int GetDistance()
+    {
+        return Mathf.FloorToInt(distance);
     }
 
     private void OnDrawGizmosSelected()
     {
         if (playerCollider != null)
         {
-            // Визуализация raycast для земли
             Gizmos.color = Color.red;
             Vector2 rayOrigin = new Vector2(transform.position.x, transform.position.y - (playerCollider.bounds.size.y / 2));
             float rayLength = groundCheckDistance;
@@ -516,181 +765,11 @@ public class Player : MonoBehaviour
             Gizmos.DrawLine(rayOrigin, rayOrigin + Vector2.down * rayLength);
             Gizmos.DrawWireSphere(rayOrigin + Vector2.down * rayLength, 0.05f);
 
-            // === НОВОЕ: Визуализация raycast для потолка ===
             Gizmos.color = Color.blue;
             Vector2 ceilingOrigin = new Vector2(transform.position.x, transform.position.y + (playerCollider.bounds.size.y / 2));
             float ceilingRayLength = velocity.y > 0 ? Mathf.Abs(velocity.y * Time.fixedDeltaTime) + ceilingCheckDistance : ceilingCheckDistance;
             Gizmos.DrawLine(ceilingOrigin, ceilingOrigin + Vector2.up * ceilingRayLength);
             Gizmos.DrawWireSphere(ceilingOrigin + Vector2.up * ceilingRayLength, 0.05f);
         }
-    }
-
-    public void hitObstacle(Obstacle obstacle)
-    {
-        isDead = true;
-    }
-
-    private void SwitchPolarity()
-    {
-        currentPolarity = 1 - currentPolarity; // Toggle 0 <-> 1
-        UpdateCollisionLayers();
-        UpdatePlayerVisuals();
-        Debug.Log("Polarity switched to: " + (currentPolarity == 0 ? "Neon" : "Dark"));
-    }
-
-    private void UpdateCollisionLayers()
-    {
-        // Игнорируем коллизии с неподходящим слоем платформ
-        Physics2D.IgnoreLayerCollision(playerLayer, neonGroundLayerIndex, currentPolarity != 0);
-        Physics2D.IgnoreLayerCollision(playerLayer, darkGroundLayerIndex, currentPolarity != 1);
-
-        // ДОБАВЛЕНО: Игнорируем коллизии с неподходящим слоем шипов
-        Physics2D.IgnoreLayerCollision(playerLayer, 10, currentPolarity != 0); // Neon шипы (слой 10)
-        Physics2D.IgnoreLayerCollision(playerLayer, 11, currentPolarity != 1); // Dark шипы (слой 11)
-    }
-
-    private void UpdatePlayerVisuals()
-    {
-        if (playerSpriteRenderer != null)
-        {
-            playerSpriteRenderer.color = (currentPolarity == 0 ? neonPlayerColor : darkPlayerColor);
-        }
-
-        // Обновляем обводку, если есть
-        SpriteNeonOutline outlineComp = GetComponent<SpriteNeonOutline>();
-        if (outlineComp != null)
-        {
-            outlineComp.outlineTint = (currentPolarity == 0 ? neonPlayerColor : darkPlayerColor);
-            // Цвет обновится в LateUpdate() следующего кадра
-        }
-    }
-
-    private int GetCurrentMask()
-    {
-        // Обновляем маску чтобы включать оба слоя шипов в зависимости от полярности
-        int maskValue = (currentPolarity == 0 ? neonMask : darkMask).value;
-
-        // Добавляем соответствующий слой шипов
-        int obstacleLayer = (currentPolarity == 0 ? 10 : 11); // Предполагаемые индексы слоев
-        maskValue |= (1 << obstacleLayer);
-
-        return maskValue;
-    }
-
-    // ДОБАВЛЕНО: Метод для включения/выключения двойного прыжка
-    public void SetDoubleJump(bool enabled)
-    {
-        canDoubleJump = enabled;
-        if (!enabled && currentJumpCount > 0)
-        {
-            currentJumpCount = Mathf.Min(currentJumpCount, 1);
-        }
-    }
-
-    // ДОБАВЛЕНО: Метод для получения текущего количества прыжков
-    public int GetCurrentJumpCount()
-    {
-        return currentJumpCount;
-    }
-
-    // ДОБАВЛЕНО: Метод для получения максимального количества прыжков
-    public int GetMaxJumpCount()
-    {
-        return maxJumpCount;
-    }
-
-    // === МЕТОДЫ ДЛЯ МОНЕТ (обновлённые) ===
-
-    /// <summary>
-    /// Добавляет монеты игроку
-    /// </summary>
-    public void AddCoins(int amount)
-    {
-        sessionCoins += amount;
-        _totalCoins += amount;
-        SaveCoins(); // Сохраняем после каждого сбора
-
-        Debug.Log("💰 Coins collected! +" + amount + " | Session: " + sessionCoins + " | Total: " + _totalCoins);
-    }
-
-    /// <summary>
-    /// Возвращает количество монет в текущей сессии
-    /// </summary>
-    public int GetSessionCoins()
-    {
-        return sessionCoins;
-    }
-
-    /// <summary>
-    /// Возвращает общее количество монет
-    /// </summary>
-    public int GetTotalCoins()
-    {
-        return _totalCoins;
-    }
-
-    /// <summary>
-    /// Тратит монеты (для покупок в магазине)
-    /// </summary>
-    public bool SpendCoins(int amount)
-    {
-        if (_totalCoins >= amount)
-        {
-            _totalCoins -= amount;
-            SaveCoins();
-            Debug.Log("💸 Spent " + amount + " coins. Remaining: " + _totalCoins);
-            return true;
-        }
-        Debug.Log("❌ Not enough coins! Need: " + amount + ", Have: " + _totalCoins);
-        return false;
-    }
-
-    /// <summary>
-    /// Сбрасывает монеты сессии (при рестарте уровня)
-    /// </summary>
-    public void ResetSessionCoins()
-    {
-        sessionCoins = 0;
-    }
-
-    // === СОХРАНЕНИЕ/ЗАГРУЗКА МОНЕТ ===
-
-    /// <summary>
-    /// Сохраняет монеты в PlayerPrefs
-    /// </summary>
-    private void SaveCoins()
-    {
-        PlayerPrefs.SetInt(COINS_SAVE_KEY, _totalCoins);
-        PlayerPrefs.Save();
-    }
-
-    /// <summary>
-    /// Загружает монеты из PlayerPrefs
-    /// </summary>
-    private void LoadCoins()
-    {
-        _totalCoins = PlayerPrefs.GetInt(COINS_SAVE_KEY, 0);
-    }
-
-    /// <summary>
-    /// Сбрасывает все сохранённые монеты (для отладки)
-    /// </summary>
-    public void ResetAllCoins()
-    {
-        _totalCoins = 0;
-        sessionCoins = 0;
-        PlayerPrefs.DeleteKey(COINS_SAVE_KEY);
-        PlayerPrefs.Save();
-        Debug.Log("🗑️ All coins reset!");
-    }
-
-    /// <summary>
-    /// Добавляет монеты для тестирования (вызывать из консоли или кнопки)
-    /// </summary>
-    [ContextMenu("Add 100 Test Coins")]
-    public void AddTestCoins()
-    {
-        AddCoins(100);
-        Debug.Log("🎁 Added 100 test coins! Total: " + _totalCoins);
     }
 }
