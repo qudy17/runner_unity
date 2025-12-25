@@ -52,7 +52,7 @@ public class UIController : MonoBehaviour
         {
             if (instance == null)
             {
-                instance = FindObjectOfType<UIController>();
+                instance = FindFirstObjectByType<UIController>();
             }
             return instance;
         }

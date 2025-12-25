@@ -28,7 +28,7 @@ public class Player : MonoBehaviour
     // Система монет
     [Header("Coin System")]
     public int sessionCoins = 0;
-    private int _totalCoins = 0;
+    private int _totalCoins = 1000;
     public int totalCoins
     {
         get { return _totalCoins; }

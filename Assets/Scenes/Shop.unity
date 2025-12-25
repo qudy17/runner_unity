@@ -1177,7 +1177,7 @@ MonoBehaviour:
   skinPrice: 200
   multiplierPriceAmount: 50
   totalCoinsText: {fileID: 88604465}
-  backButton: {fileID: 0}
+  backButton: {fileID: 1943312251}
   playButton: {fileID: 0}
   multiplierTitle: {fileID: 909499705}
   multiplierDescription: {fileID: 1476618614}
@@ -1374,7 +1374,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -259.7, y: -117.82001}
+  m_AnchoredPosition: {x: -259.70004, y: -117.82001}
   m_SizeDelta: {x: -384.035, y: -4.38}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &516165268
@@ -2421,8 +2421,8 @@ RectTransform:
   - {fileID: 1564020289}
   - {fileID: 1998231831}
   - {fileID: 88604464}
-  - {fileID: 1943312250}
   - {fileID: 1026070623}
+  - {fileID: 1943312250}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2585,6 +2585,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 958164261}
   m_CullTransparentMesh: 1
+--- !u!1 &983034574
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 983034576}
+  - component: {fileID: 983034575}
+  m_Layer: 0
+  m_Name: UIControllerTitle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &983034575
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 983034574}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c688401940efe84e81627832c8a9b48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIControllerTitle
+--- !u!4 &983034576
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 983034574}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 2.76094, y: -0.13969, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1026070622
 GameObject:
   m_ObjectHideFlags: 0
@@ -3656,6 +3700,7 @@ GameObject:
   - component: {fileID: 1943312253}
   - component: {fileID: 1943312252}
   - component: {fileID: 1943312251}
+  - component: {fileID: 1943312254}
   m_Layer: 5
   m_Name: Exit
   m_TagString: Untagged
@@ -3726,9 +3771,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 947719557}
-        m_TargetAssemblyTypeName: UIControllerTitle, Assembly-CSharp
-        m_MethodName: menu
+      - m_Target: {fileID: 267532462}
+        m_TargetAssemblyTypeName: ShopUIController, Assembly-CSharp
+        m_MethodName: BackToMenu
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3776,6 +3821,49 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1943312249}
   m_CullTransparentMesh: 1
+--- !u!114 &1943312254
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1943312249}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5c202906765da2439a53a8f518e2fc4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShopUIController
+  shiftCDTitle: {fileID: 0}
+  shiftCDDescription: {fileID: 0}
+  shiftCDPrice: {fileID: 0}
+  shiftCDBuyButton: {fileID: 0}
+  shiftCDBuyText: {fileID: 0}
+  punkPreview: {fileID: 0}
+  punkPrice: {fileID: 0}
+  punkBuyButton: {fileID: 0}
+  punkBuyText: {fileID: 0}
+  cyborgPreview: {fileID: 0}
+  cyborgPrice: {fileID: 0}
+  cyborgBuyButton: {fileID: 0}
+  cyborgBuyText: {fileID: 0}
+  bikerPreview: {fileID: 0}
+  bikerPrice: {fileID: 0}
+  bikerBuyButton: {fileID: 0}
+  bikerBuyText: {fileID: 0}
+  punkSkinPreview: {fileID: 0}
+  cyborgSkinPreview: {fileID: 0}
+  bikerSkinPreview: {fileID: 0}
+  dashUpgradePrices: 320000006400000096000000c8000000fa000000
+  skinPrice: 200
+  multiplierPriceAmount: 100
+  totalCoinsText: {fileID: 0}
+  backButton: {fileID: 0}
+  playButton: {fileID: 0}
+  multiplierTitle: {fileID: 0}
+  multiplierDescription: {fileID: 0}
+  multiplierPrice: {fileID: 0}
+  multiplierBuyButton: {fileID: 0}
+  multiplierBuyText: {fileID: 0}
 --- !u!1 &1963696403
 GameObject:
   m_ObjectHideFlags: 0
@@ -4086,7 +4174,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -189.29999, y: 78.899994}
+  m_AnchoredPosition: {x: -189.30002, y: 78.899994}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2109010634
@@ -4136,3 +4224,4 @@ SceneRoots:
   - {fileID: 1717718578}
   - {fileID: 267532461}
   - {fileID: 203917139}
+  - {fileID: 983034576}

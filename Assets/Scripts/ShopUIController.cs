@@ -4,6 +4,8 @@ using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System;
 
 public class ShopUIController : MonoBehaviour
 {
@@ -12,23 +14,23 @@ public class ShopUIController : MonoBehaviour
     public TMP_Text shiftCDDescription;
     public TMP_Text shiftCDPrice;
     public Button shiftCDBuyButton;
-    public Text shiftCDBuyText; // Обычный Text
+    public Text shiftCDBuyText;
 
     [Header("UI References - Skins")]
     public Image punkPreview;
     public TMP_Text punkPrice;
     public Button punkBuyButton;
-    public Text punkBuyText; // Обычный Text
+    public Text punkBuyText;
 
     public Image cyborgPreview;
     public TMP_Text cyborgPrice;
     public Button cyborgBuyButton;
-    public Text cyborgBuyText; // Обычный Text
+    public Text cyborgBuyText;
 
     public Image bikerPreview;
     public TMP_Text bikerPrice;
     public Button bikerBuyButton;
-    public Text bikerBuyText; // Обычный Text
+    public Text bikerBuyText;
 
     [Header("Skin Previews in Scene")]
     public GameObject punkSkinPreview;
@@ -45,9 +47,6 @@ public class ShopUIController : MonoBehaviour
     public Button backButton;
     public Button playButton;
 
-    private PlayerSaveData saveData;
-    private string currentPreviewSkin = "Punk";
-
     [Header("UI References - Multiplier")]
     public TMP_Text multiplierTitle;
     public TMP_Text multiplierDescription;
@@ -55,95 +54,289 @@ public class ShopUIController : MonoBehaviour
     public Button multiplierBuyButton;
     public Text multiplierBuyText;
 
+    private PlayerSaveData saveData;
+    private string currentPreviewSkin = "Punk";
+
+    // === ДОБАВЛЕНО: Собственная система сохранения ===
+    private string saveFolderPath;
+    private string saveFilePath;
+
     void Start()
     {
+        Debug.Log("=== SHOP INITIALIZED ===");
+
+        // Инициализируем собственную систему сохранения
+        InitializeSaveSystem();
+
+        // === АВТОПОИСК КНОПОК ===
+        AutoFindButtons();
+
         // Загружаем данные
         LoadSaveData();
         UpdateAllUI();
-
         SetupButtons();
-
         ShowSkinPreview("Punk");
-
         UpdateMultiplierUI();
 
-        Debug.Log("Shop initialized. Coins: " + saveData.totalCoins +
-                  ", Dash Level: " + saveData.dashUpgradeLevel +
-                  ", Selected Skin: " + saveData.selectedSkin);
+        Debug.Log("Shop ready. Coins: " + saveData.totalCoins);
     }
 
+    // Добавь этот новый метод после Start()
+    void AutoFindButtons()
+    {
+        // Ищем кнопку Back если не назначена
+        if (backButton == null)
+        {
+            // Пробуем разные варианты имён
+            string[] backButtonNames = { "BackButton", "Back", "ButtonBack", "ExitButton", "Exit", "CloseButton", "Close", "MenuButton" };
+
+            foreach (string name in backButtonNames)
+            {
+                GameObject obj = GameObject.Find(name);
+                if (obj != null)
+                {
+                    backButton = obj.GetComponent<Button>();
+                    if (backButton != null)
+                    {
+                        Debug.Log("✅ Auto-found back button: " + name);
+                        break;
+                    }
+                }
+            }
+
+            // Если всё ещё не нашли - ищем любую кнопку с нужным текстом
+            if (backButton == null)
+            {
+                // ИСПРАВЛЕНО: новый метод вместо устаревшего
+                Button[] allButtons = FindObjectsByType<Button>(FindObjectsSortMode.None);
+
+                foreach (Button btn in allButtons)
+                {
+                    Text btnText = btn.GetComponentInChildren<Text>();
+                    TMPro.TMP_Text btnTMP = btn.GetComponentInChildren<TMPro.TMP_Text>();
+
+                    string buttonText = "";
+                    if (btnText != null) buttonText = btnText.text.ToLower();
+                    if (btnTMP != null) buttonText = btnTMP.text.ToLower();
+
+                    if (buttonText.Contains("назад") || buttonText.Contains("back") ||
+                        buttonText.Contains("выход") || buttonText.Contains("exit") ||
+                        buttonText.Contains("меню") || buttonText.Contains("menu") ||
+                        buttonText.Contains("закрыть") || buttonText.Contains("close"))
+                    {
+                        backButton = btn;
+                        Debug.Log("✅ Auto-found back button by text: " + buttonText);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Показываем все кнопки в сцене для отладки
+        if (backButton == null)
+        {
+            Debug.LogError("❌ Back button not found! Available buttons in scene:");
+
+            // ИСПРАВЛЕНО: новый метод
+            Button[] allButtons = FindObjectsByType<Button>(FindObjectsSortMode.None);
+
+            foreach (Button btn in allButtons)
+            {
+                string btnName = btn.gameObject.name;
+                Text btnText = btn.GetComponentInChildren<Text>();
+                TMPro.TMP_Text btnTMP = btn.GetComponentInChildren<TMPro.TMP_Text>();
+
+                string textContent = "";
+                if (btnText != null) textContent = btnText.text;
+                if (btnTMP != null) textContent = btnTMP.text;
+
+                Debug.Log("   → Button: '" + btnName + "' | text: '" + textContent + "'");
+            }
+        }
+    }
+
+    // === ДОБАВЛЕНО: Инициализация системы сохранения ===
+    void InitializeSaveSystem()
+    {
+        string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        saveFolderPath = Path.Combine(documentsPath, "Neon Runner");
+        saveFilePath = Path.Combine(saveFolderPath, "savegame.json");
+
+        if (!Directory.Exists(saveFolderPath))
+        {
+            Directory.CreateDirectory(saveFolderPath);
+            Debug.Log("✅ Created save folder: " + saveFolderPath);
+        }
+    }
+
+    // === ИСПРАВЛЕНО: Загрузка данных напрямую из файла ===
     void LoadSaveData()
     {
+        // Сначала пробуем получить из UIController (если он есть)
         if (UIController.Instance != null)
         {
             saveData = UIController.Instance.GetSaveData();
+            Debug.Log("✅ Loaded data from UIController");
+        }
+        // Если UIController нет - загружаем напрямую из файла
+        else
+        {
+            LoadFromFile();
+            Debug.Log("✅ Loaded data directly from file");
+        }
 
-            // Гарантируем что Punk разблокирован
-            if (saveData.unlockedSkins == null)
-                saveData.unlockedSkins = new List<string>();
+        // Гарантируем что Punk разблокирован
+        if (saveData.unlockedSkins == null)
+            saveData.unlockedSkins = new List<string>();
 
-            if (!saveData.unlockedSkins.Contains("Punk"))
-                saveData.unlockedSkins.Add("Punk");
+        if (!saveData.unlockedSkins.Contains("Punk"))
+            saveData.unlockedSkins.Add("Punk");
 
-            if (string.IsNullOrEmpty(saveData.selectedSkin))
-                saveData.selectedSkin = "Punk";
+        if (string.IsNullOrEmpty(saveData.selectedSkin))
+            saveData.selectedSkin = "Punk";
+    }
+
+    // === ДОБАВЛЕНО: Загрузка из файла ===
+    void LoadFromFile()
+    {
+        if (File.Exists(saveFilePath))
+        {
+            try
+            {
+                string json = File.ReadAllText(saveFilePath);
+                saveData = JsonUtility.FromJson<PlayerSaveData>(json);
+                Debug.Log("✅ Save file loaded: " + saveFilePath);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("❌ Failed to load save: " + e.Message);
+                saveData = new PlayerSaveData();
+            }
         }
         else
         {
             saveData = new PlayerSaveData();
-            Debug.LogError("UIController not found! Using default save data.");
+            Debug.Log("ℹ️ No save file, using defaults");
         }
     }
 
+    // === ИСПРАВЛЕНО: Сохранение данных ===
     void SaveGameData()
     {
+        // Пробуем сохранить через UIController
         if (UIController.Instance != null)
         {
             UIController.Instance.UpdateSaveData(saveData);
         }
+
+        // Всегда сохраняем напрямую в файл (на всякий случай)
+        SaveToFile();
     }
 
+    // === ДОБАВЛЕНО: Сохранение в файл ===
+    void SaveToFile()
+    {
+        try
+        {
+            string json = JsonUtility.ToJson(saveData, true);
+            File.WriteAllText(saveFilePath, json);
+            Debug.Log("✅ Saved to file: " + saveFilePath);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("❌ Failed to save: " + e.Message);
+        }
+    }
+
+    // === ИСПРАВЛЕНО: Настройка кнопок с отладкой ===
     void SetupButtons()
     {
         // Кнопка назад
         if (backButton != null)
         {
-            backButton.onClick.AddListener(() => BackToMenu());
+            backButton.onClick.RemoveAllListeners(); // Очищаем старые
+            backButton.onClick.AddListener(BackToMenu);
+            Debug.Log("✅ Back button connected");
+        }
+        else
+        {
+            Debug.LogError("❌ backButton is NULL! Assign it in Inspector!");
         }
 
         // Кнопка игры
         if (playButton != null)
         {
-            playButton.onClick.AddListener(() => PlayGame());
+            playButton.onClick.RemoveAllListeners();
+            playButton.onClick.AddListener(PlayGame);
+            Debug.Log("✅ Play button connected");
         }
+
 
         // Кнопки предметов
         if (shiftCDBuyButton != null)
         {
-            shiftCDBuyButton.onClick.AddListener(() => BuyDashUpgrade());
+            shiftCDBuyButton.onClick.RemoveAllListeners();
+            shiftCDBuyButton.onClick.AddListener(BuyDashUpgrade);
         }
 
-        // Кнопка множителя
         if (multiplierBuyButton != null)
         {
-            multiplierBuyButton.onClick.AddListener(() => BuyMultiplierUpgrade());
+            multiplierBuyButton.onClick.RemoveAllListeners();
+            multiplierBuyButton.onClick.AddListener(BuyMultiplierUpgrade);
         }
 
         if (punkBuyButton != null)
         {
+            punkBuyButton.onClick.RemoveAllListeners();
             punkBuyButton.onClick.AddListener(() => OnSkinButtonClick("Punk"));
         }
 
         if (cyborgBuyButton != null)
         {
+            cyborgBuyButton.onClick.RemoveAllListeners();
             cyborgBuyButton.onClick.AddListener(() => OnSkinButtonClick("Cyborg"));
         }
 
         if (bikerBuyButton != null)
         {
+            bikerBuyButton.onClick.RemoveAllListeners();
             bikerBuyButton.onClick.AddListener(() => OnSkinButtonClick("Biker"));
         }
     }
+
+    // === ИСПРАВЛЕНО: Навигация с отладкой ===
+    public void BackToMenu()
+    {
+        Debug.Log(">>> BackToMenu() CALLED <<<");
+
+        // Сохраняем перед выходом
+        SaveGameData();
+
+        // Небольшая задержка для гарантии сохранения
+        StartCoroutine(LoadMenuWithDelay());
+    }
+
+    IEnumerator LoadMenuWithDelay()
+    {
+        yield return new WaitForSeconds(0.1f);
+        Debug.Log(">>> Loading Menu scene <<<");
+        SceneManager.LoadScene("Menu");
+    }
+
+    public void PlayGame()
+    {
+        Debug.Log(">>> PlayGame() CALLED <<<");
+        SaveGameData();
+        StartCoroutine(LoadGameWithDelay());
+    }
+
+    IEnumerator LoadGameWithDelay()
+    {
+        yield return new WaitForSeconds(0.1f);
+        SceneManager.LoadScene("MainScene");
+    }
+
+    // ========== ОСТАЛЬНЫЕ МЕТОДЫ (без изменений) ==========
 
     void UpdateAllUI()
     {
@@ -259,8 +452,6 @@ public class ShopUIController : MonoBehaviour
             UpdateAllUI();
 
             Debug.Log($"Куплен множитель! Уровень: {saveData.scoreMultiplierLevel}");
-
-            // Эффект
             StartCoroutine(ButtonBounceEffect(multiplierBuyButton.transform));
         }
         else
@@ -271,13 +462,8 @@ public class ShopUIController : MonoBehaviour
 
     void UpdateSkinsUI()
     {
-        // Punk (всегда разблокирован)
         UpdateSkinUI("Punk", punkPrice, punkBuyButton, punkBuyText);
-
-        // Cyborg
         UpdateSkinUI("Cyborg", cyborgPrice, cyborgBuyButton, cyborgBuyText);
-
-        // Biker
         UpdateSkinUI("Biker", bikerPrice, bikerBuyButton, bikerBuyText);
     }
 
@@ -288,14 +474,7 @@ public class ShopUIController : MonoBehaviour
 
         if (priceText != null)
         {
-            if (isUnlocked)
-            {
-                priceText.text = "";
-            }
-            else
-            {
-                priceText.text = $"{skinPrice}";
-            }
+            priceText.text = isUnlocked ? "" : $"{skinPrice}";
         }
 
         if (buyButton != null && buyText != null)
@@ -303,17 +482,11 @@ public class ShopUIController : MonoBehaviour
             buyButton.interactable = true;
 
             if (!isUnlocked)
-            {
                 buyText.text = "КУПИТЬ";
-            }
             else if (isSelected)
-            {
                 buyText.text = "ИСПОЛЬЗУЕТСЯ";
-            }
             else
-            {
                 buyText.text = "ВЫБРАТЬ";
-            }
         }
     }
 
@@ -336,8 +509,6 @@ public class ShopUIController : MonoBehaviour
             UpdateAllUI();
 
             Debug.Log($"Куплено улучшение рывка! Уровень: {saveData.dashUpgradeLevel}");
-
-            // Эффект
             StartCoroutine(ButtonBounceEffect(shiftCDBuyButton.transform));
         }
         else
@@ -352,19 +523,14 @@ public class ShopUIController : MonoBehaviour
 
         if (isUnlocked)
         {
-            // Скин уже разблокирован - выбираем его
             saveData.selectedSkin = skinName;
             SaveGameData();
             UpdateAllUI();
-
-            // Показываем превью
             ShowSkinPreview(skinName);
-
             Debug.Log($"Выбран скин: {skinName}");
         }
         else
         {
-            // Пытаемся купить скин
             if (saveData.totalCoins >= skinPrice)
             {
                 saveData.totalCoins -= skinPrice;
@@ -373,13 +539,10 @@ public class ShopUIController : MonoBehaviour
 
                 SaveGameData();
                 UpdateAllUI();
-
-                // Показываем превью
                 ShowSkinPreview(skinName);
 
                 Debug.Log($"Куплен скин: {skinName}");
 
-                // Эффект
                 Button skinButton = GetSkinButton(skinName);
                 if (skinButton != null)
                     StartCoroutine(ButtonBounceEffect(skinButton.transform));
@@ -402,25 +565,12 @@ public class ShopUIController : MonoBehaviour
         }
     }
 
-    Text GetSkinText(string skinName)
-    {
-        switch (skinName)
-        {
-            case "Punk": return punkBuyText;
-            case "Cyborg": return cyborgBuyText;
-            case "Biker": return bikerBuyText;
-            default: return null;
-        }
-    }
-
     void ShowSkinPreview(string skinName)
     {
-        // Скрываем все превью
         if (punkSkinPreview != null) punkSkinPreview.SetActive(false);
         if (cyborgSkinPreview != null) cyborgSkinPreview.SetActive(false);
         if (bikerSkinPreview != null) bikerSkinPreview.SetActive(false);
 
-        // Показываем выбранное превью
         GameObject previewObject = null;
         switch (skinName)
         {
@@ -434,7 +584,6 @@ public class ShopUIController : MonoBehaviour
             previewObject.SetActive(true);
             currentPreviewSkin = skinName;
 
-            // Запускаем анимацию
             Animator animator = previewObject.GetComponent<Animator>();
             if (animator != null)
             {
@@ -442,41 +591,9 @@ public class ShopUIController : MonoBehaviour
                 animator.SetBool("IsGrounded", true);
                 animator.Play("Run");
             }
-
-            // Начинаем цикл анимации
-            StopAllCoroutines();
-            StartCoroutine(PreviewAnimationCycle(previewObject));
         }
     }
 
-    IEnumerator PreviewAnimationCycle(GameObject preview)
-    {
-        Animator animator = preview.GetComponent<Animator>();
-        if (animator == null) yield break;
-
-        while (preview.activeSelf)
-        {
-            // Бег - 3 секунды
-            animator.SetBool("IsRunning", true);
-            animator.SetBool("IsJumping", false);
-            yield return new WaitForSeconds(3f);
-
-            // Прыжок
-            animator.SetBool("IsJumping", true);
-            animator.SetBool("IsRunning", false);
-            yield return new WaitForSeconds(1f);
-
-            // Падение
-            animator.SetBool("IsJumping", false);
-            yield return new WaitForSeconds(0.5f);
-
-            // Снова бег
-            animator.SetBool("IsRunning", true);
-            yield return new WaitForSeconds(1f);
-        }
-    }
-
-    // Анимационные эффекты
     IEnumerator ButtonBounceEffect(Transform buttonTransform)
     {
         Vector3 originalScale = buttonTransform.localScale;
@@ -488,7 +605,6 @@ public class ShopUIController : MonoBehaviour
             float t = elapsed / duration;
             float scale = 1f + 0.3f * Mathf.Sin(t * Mathf.PI);
             buttonTransform.localScale = originalScale * scale;
-
             elapsed += Time.deltaTime;
             yield return null;
         }
@@ -496,20 +612,7 @@ public class ShopUIController : MonoBehaviour
         buttonTransform.localScale = originalScale;
     }
 
-    // Навигация
-    public void BackToMenu()
-    {
-        Debug.Log("BackToMenu called from inspector");
-        SceneManager.LoadScene("Menu");
-    }
-
-    public void PlayGame()
-    {
-        Debug.Log("PlayGame called from inspector");
-        SceneManager.LoadScene("MainScene");
-    }
-
-    // Отладка
+    // === ОТЛАДКА ===
     [ContextMenu("Add 1000 Coins")]
     void AddTestCoins()
     {
@@ -532,16 +635,17 @@ public class ShopUIController : MonoBehaviour
         Debug.Log("Shop data reset!");
     }
 
-    [ContextMenu("Unlock Everything")]
-    void UnlockEverything()
+    [ContextMenu("Test Back Button")]
+    void TestBackButton()
     {
-        saveData.scoreMultiplierLevel = 10;
-        saveData.dashUpgradeLevel = 5;
-        saveData.unlockedSkins = new List<string> { "Punk", "Cyborg", "Biker" };
-        saveData.selectedSkin = "Biker";
-        SaveGameData();
-        UpdateAllUI();
-        ShowSkinPreview("Biker");
-        Debug.Log("Everything unlocked!");
+        Debug.Log("=== TESTING BACK BUTTON ===");
+        Debug.Log("backButton: " + (backButton != null ? backButton.name : "NULL"));
+        if (backButton != null)
+        {
+            Debug.Log("  - interactable: " + backButton.interactable);
+            Debug.Log("  - gameObject active: " + backButton.gameObject.activeSelf);
+            Debug.Log("  - listeners count: " + backButton.onClick.GetPersistentEventCount());
+        }
+        BackToMenu();
     }
 }
