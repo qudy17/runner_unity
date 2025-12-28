@@ -37,7 +37,7 @@ public class UIController : MonoBehaviour
 
     [Header("Display Settings")]
     public bool showTotalCoins = false;
-    public string recordPrefix = "Record: ";
+    public string recordPrefix = "";
 
     // Система сохранения
     private string saveFolderPath;
@@ -208,7 +208,7 @@ public class UIController : MonoBehaviour
 
     void UpdateRecordDisplay()
     {
-        string recordString = recordPrefix + saveData.highScore.ToString();
+        string recordString = " " + saveData.highScore.ToString();
 
         if (recordText != null)
             recordText.text = recordString;

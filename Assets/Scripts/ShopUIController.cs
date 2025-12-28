@@ -15,12 +15,17 @@ public class ShopUIController : MonoBehaviour
     public TMP_Text shiftCDPrice;
     public Button shiftCDBuyButton;
     public Text shiftCDBuyText;
+    public Sprite maxVaueImg;
 
     [Header("UI References - Skins")]
+    public Sprite usedButtonImg;
+    public Sprite useButtonImg;
+    public Sprite buyButtonImg;
     public Image punkPreview;
     public TMP_Text punkPrice;
     public Button punkBuyButton;
     public Text punkBuyText;
+    public Image PunkUseInage;
 
     public Image cyborgPreview;
     public TMP_Text cyborgPrice;
@@ -56,6 +61,16 @@ public class ShopUIController : MonoBehaviour
 
     private PlayerSaveData saveData;
     private string currentPreviewSkin = "Punk";
+
+    [Header("Coins")]
+    public GameObject ShiftCoins;
+    public GameObject MultiplierCoins;
+    public GameObject punkCoins;
+    public GameObject cyborgCoins;
+    public GameObject bikerCoins;
+
+
+
 
     // === ДОБАВЛЕНО: Собственная система сохранения ===
     private string saveFolderPath;
@@ -379,17 +394,19 @@ public class ShopUIController : MonoBehaviour
             }
         }
 
-        if (shiftCDBuyButton != null && shiftCDBuyText != null)
+        if (shiftCDBuyButton != null && maxVaueImg != null && buyButtonImg != null)
         {
             if (saveData.dashUpgradeLevel < 5)
             {
                 shiftCDBuyButton.interactable = true;
-                shiftCDBuyText.text = $"КУПИТЬ\n({saveData.dashUpgradeLevel + 1}/5)";
+                shiftCDBuyButton.image.sprite = buyButtonImg;
+
             }
             else
             {
                 shiftCDBuyButton.interactable = false;
-                shiftCDBuyText.text = "МАКСИМУМ";
+                shiftCDBuyButton.image.sprite = maxVaueImg;
+                ShiftCoins.SetActive(false);
             }
         }
     }
@@ -408,7 +425,7 @@ public class ShopUIController : MonoBehaviour
             multiplierDescription.text = $"Умножение текущего счета на +10% за уровень\nТекущий множитель: x{currentMultiplier:F1} (+{bonusPercentage}%)";
         }
 
-        if (multiplierPrice != null)
+        if (multiplierPrice != null && maxVaueImg != null && buyButtonImg != null)
         {
             if (saveData.scoreMultiplierLevel < 10)
             {
@@ -420,17 +437,20 @@ public class ShopUIController : MonoBehaviour
             }
         }
 
-        if (multiplierBuyButton != null && multiplierBuyText != null)
+        if (multiplierBuyButton != null)
         {
             if (saveData.scoreMultiplierLevel < 10)
             {
                 multiplierBuyButton.interactable = true;
-                multiplierBuyText.text = $"КУПИТЬ\n({saveData.scoreMultiplierLevel + 1}/10)";
+                multiplierBuyButton.image.sprite = buyButtonImg;
+                Debug.Log("Покупка");
             }
             else
             {
                 multiplierBuyButton.interactable = false;
-                multiplierBuyText.text = "МАКСИМУМ";
+                multiplierBuyButton.image.sprite = maxVaueImg;
+                MultiplierCoins.SetActive(false);
+                Debug.Log("Достигнуто максимальное значение");
             }
         }
     }
@@ -462,12 +482,12 @@ public class ShopUIController : MonoBehaviour
 
     void UpdateSkinsUI()
     {
-        UpdateSkinUI("Punk", punkPrice, punkBuyButton, punkBuyText);
-        UpdateSkinUI("Cyborg", cyborgPrice, cyborgBuyButton, cyborgBuyText);
-        UpdateSkinUI("Biker", bikerPrice, bikerBuyButton, bikerBuyText);
+        UpdateSkinUI("Punk", punkPrice, punkBuyButton, punkCoins);
+        UpdateSkinUI("Cyborg", cyborgPrice, cyborgBuyButton, cyborgCoins);
+        UpdateSkinUI("Biker", bikerPrice, bikerBuyButton, bikerCoins);
     }
 
-    void UpdateSkinUI(string skinName, TMP_Text priceText, Button buyButton, Text buyText)
+    void UpdateSkinUI(string skinName, TMP_Text priceText, Button buyButton, GameObject coins)
     {
         bool isUnlocked = saveData.unlockedSkins.Contains(skinName);
         bool isSelected = saveData.selectedSkin == skinName;
@@ -477,16 +497,25 @@ public class ShopUIController : MonoBehaviour
             priceText.text = isUnlocked ? "" : $"{skinPrice}";
         }
 
-        if (buyButton != null && buyText != null)
+        if (buyButton != null && buyButtonImg != null)
         {
             buyButton.interactable = true;
 
             if (!isUnlocked)
-                buyText.text = "КУПИТЬ";
+            {
+                buyButton.image.sprite = buyButtonImg;
+                coins.SetActive(true);
+            }           
             else if (isSelected)
-                buyText.text = "ИСПОЛЬЗУЕТСЯ";
+            { 
+                buyButton.image.sprite = usedButtonImg;
+                coins.SetActive(false);
+            }
             else
-                buyText.text = "ВЫБРАТЬ";
+            {
+                buyButton.image.sprite = useButtonImg;
+                coins.SetActive(false);
+            }
         }
     }
 
