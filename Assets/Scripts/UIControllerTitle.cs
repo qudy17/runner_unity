@@ -29,4 +29,14 @@ public class UIControllerTitle : MonoBehaviour
     {
         SceneManager.LoadScene("Menu");
     }
+
+    public void about()
+    {
+        SceneManager.LoadScene("About");
+    }
+
+    public void FullQuit()
+    {
+        Application.Quit();
+    }
 }
